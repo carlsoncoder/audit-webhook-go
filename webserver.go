@@ -69,10 +69,3 @@ func main() {
 	http.HandleFunc("/audits", kubernetesaudits)
 	log.Fatal(http.ListenAndServe(":80", nil))
 }
-
-// TODO: JUSTIN: Test a POST to the endpoint and ensure ALL values (including annotations) are correctly loaded, and that the user logging validation works
-// TODO: JUSTIN: "userfinder.go" -  Shouldn't be using "panic"...instead log the error and continue on (return null??) so we don't crash the program
-// TODO: JUSTIN: Include the "groups" that a user is part of - in the JSON this is the user.groups, which is a string[]
-// TODO: JUSTIN: When iterating through "eventList.Events", we shouldn't call the userFinder multiple times for the same user
-// TODO: JUSTIN: Find some way to cache the access_token in userfinder so we aren't repeatedly calling it when we don't have to
-// TODO: JUSTIN: TEST IT ALL OUT!
