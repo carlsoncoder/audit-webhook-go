@@ -1,0 +1,23 @@
+# Ignores the generated binary from building via go build
+audit-webhook-go
+audit-webhook-go.exe
+
+# Ignores for Visual Studio Code (from https://github.com/github/gitignore/blob/master/Global/VisualStudioCode.gitignore)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Binaries for programs and plugins (from https://github.com/github/gitignore/blob/master/Go.gitignore)
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
