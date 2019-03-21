@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// Event struct maps to the main audit object in the kubernetes audit records
 type Event struct {
 	StageTimestamp time.Time  `json:"stageTimestamp"`
 	Level          string     `json:"level"`
@@ -17,10 +18,11 @@ type Event struct {
 	Annotations    Annotation `json:"annotations"`
 }
 
+// GetSourceIPAddress gets the source IP address from the object, concantenating multiple records together into one with a ':' delimiter
 func (e *Event) GetSourceIPAddress() string {
 	if len(e.SourceIPs) == 0 {
 		return "UNKNOWN"
 	}
 
-	return strings.Join(e.SourceIPs, ",")
+	return strings.Join(e.SourceIPs, "|")
 }

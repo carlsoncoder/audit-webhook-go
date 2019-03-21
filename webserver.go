@@ -7,28 +7,59 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	graphapi "github.com/carlsoncoder/audit-webhook-go/graphapi"
 	kubernetestypes "github.com/carlsoncoder/audit-webhook-go/kubernetestypes"
 )
 
 var (
-	graphAPIClient      *graphapi.GraphAPIClient
+	tenantID            string
+	clientID            string
+	clientSecret        string
+	graphAPIClient      *graphapi.Client
 	userTenantURLPrefix string
 )
 
-func kubernetesaudits(rw http.ResponseWriter, req *http.Request) {
+const (
+	tenantIDVariableName     = "TENANT_ID"
+	clientIDVariableName     = "CLIENT_ID"
+	clientSecretVariableName = "CLIENT_SECRET"
+)
+
+func kubernetesAuditPostHandler(rw http.ResponseWriter, req *http.Request) {
+	now := time.Now().UTC()
+	formattedNow := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
+
+	log.Println(fmt.Sprintf("[%s] Processing POST request...", formattedNow))
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		panic(err)
+		log.Println("Error reading POST!")
+		log.Println(fmt.Sprintf("%v", err))
+		return
 	}
 
 	var eventList kubernetestypes.EventList
 
 	err = json.Unmarshal(body, &eventList)
 	if err != nil {
-		panic(err)
+		log.Println("Unable to parse POST to JSON")
+		log.Println(fmt.Sprintf("%v", err))
+		log.Println("Full POST Body:")
+		log.Println(string(body[:]))
+		return
 	}
+
+	// error handling function to capture any errors that occur in the processing in the rest of this method
+	defer func() {
+		err := recover()
+		if err != nil {
+			log.Println("ERROR PROCESSING KUBERNETES AUDIT RECORDS:")
+			log.Println(fmt.Sprintf("%v", err))
+			log.Println("Full POST Body:")
+			log.Println(string(body[:]))
+		}
+	}()
 
 	for i, event := range eventList.Events {
 		// We only want to log records that came from an AAD user
@@ -57,14 +88,28 @@ func kubernetesaudits(rw http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	// load the parameters from OS environment variables and initialize our graphAPIClient class
-	tenantID := os.Getenv("TENANT_ID")
-	clientID := os.Getenv("CLIENT_ID")
-	clientSecret := os.Getenv("CLIENT_SECRET")
+	loadParameters()
 
-	graphAPIClient = graphapi.NewGraphAPIClient(tenantID, clientID, clientSecret)
+	graphAPIClient = graphapi.NewClient(tenantID, clientID, clientSecret)
 	userTenantURLPrefix = fmt.Sprintf("https://sts.windows.net/%s/#", tenantID)
 
-	http.HandleFunc("/audits", kubernetesaudits)
+	http.HandleFunc("/audits", kubernetesAuditPostHandler)
 	log.Fatal(http.ListenAndServe(":80", nil))
+}
+
+func loadParameters() {
+	// load the parameters from OS environment variables and initialize our graphAPIClient class
+	tenantID = os.Getenv(tenantIDVariableName)
+	clientID = os.Getenv(clientIDVariableName)
+	clientSecret = os.Getenv(clientSecretVariableName)
+
+	validateParameter(tenantID, tenantIDVariableName)
+	validateParameter(clientID, clientIDVariableName)
+	validateParameter(clientSecret, clientSecretVariableName)
+}
+
+func validateParameter(parameterValue string, parameterName string) {
+	if parameterValue == "" {
+		panic(fmt.Errorf("%s cannot be null", parameterName))
+	}
 }
