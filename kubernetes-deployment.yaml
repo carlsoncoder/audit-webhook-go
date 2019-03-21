@@ -1,0 +1,42 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit-webhook-service
+spec:
+  selector:
+    app: audit-webhook
+  ports:
+    - protocol: TCP
+      port: 80
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: audit-webhook-deployment
+  labels:
+    app: audit-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: audit-webhook
+  template:
+    metadata:
+      labels:
+        app: audit-webhook
+    spec:
+      containers:
+      - name: audit-webhook-application
+        image: carlsoncoder/audit-webhook-go:v1
+        env:
+        - name: TENANT_ID
+          value: "YOUR_TENANT_ID_HERE"
+        - name: CLIENT_ID
+          value: "YOUR_CLIENT_ID_HERE"
+        - name: CLIENT_SECRET
+          value: "YOUR_CLIENT_SECRET_HERE"
+        ports:
+        - containerPort: 80
+      nodeSelector:
+        beta.kubernetes.io/os: linux

@@ -1,3 +1,4 @@
 .gitignore
 README.md
 sampleKubernetesAuditPostData.json
+kubernetes-deployment.yaml
