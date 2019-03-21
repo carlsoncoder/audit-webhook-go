@@ -7,14 +7,13 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	graphapi "github.com/carlsoncoder/audit-webhook-go/graphapi"
 	kubernetestypes "github.com/carlsoncoder/audit-webhook-go/kubernetestypes"
 )
 
 var (
-	userFinder          *graphapi.UserFinder
+	graphAPIClient      *graphapi.GraphAPIClient
 	userTenantURLPrefix string
 )
 
@@ -24,7 +23,6 @@ func kubernetesaudits(rw http.ResponseWriter, req *http.Request) {
 		panic(err)
 	}
 
-	log.Println(string(body))
 	var eventList kubernetestypes.EventList
 
 	err = json.Unmarshal(body, &eventList)
@@ -34,36 +32,37 @@ func kubernetesaudits(rw http.ResponseWriter, req *http.Request) {
 
 	for i, event := range eventList.Events {
 		// We only want to log records that came from an AAD user
-		if strings.HasPrefix(event.User.UserName, userTenantURLPrefix) {
+		if event.User.IsUserValidAADUser(userTenantURLPrefix) {
 			log.Println(fmt.Sprintf("Event #%d", i+1))
-			log.Println(event.StageTimestamp)
-			log.Println(event.Level)
-			log.Println(event.Stage)
-			log.Println(event.RequestURI)
-			log.Println(event.Verb)
+			log.Println(fmt.Sprintf("Timestamp: %s", event.StageTimestamp))
+			log.Println(fmt.Sprintf("Level: %s", event.Level))
+			log.Println(fmt.Sprintf("Stage: %s", event.Stage))
+			log.Println(fmt.Sprintf("Requst URI: %s", event.RequestURI))
+			log.Println(fmt.Sprintf("Verb: %s", event.Verb))
 
 			// determine and output user properties
-			userObjectID := event.User.UserName[len(userTenantURLPrefix):]
-			userDisplayName, userPrincipalName := userFinder.LoadUserValues(userObjectID)
-			log.Println(userObjectID)
-			log.Println(userDisplayName)
-			log.Println(userPrincipalName)
+			userObjectID, userDisplayName, userPrincipalName := event.User.GetUserDetails(userTenantURLPrefix, graphAPIClient)
+			log.Println(fmt.Sprintf("User Object ID: %s", userObjectID))
+			log.Println(fmt.Sprintf("User Display Name: %s", userDisplayName))
+			log.Println(fmt.Sprintf("User Principal Name: %s", userPrincipalName))
 
-			log.Println(event.GetSourceIPAddress())
-			log.Println(event.ObjectRef.Name)
-			log.Println(event.ObjectRef.Resource)
-			log.Println(event.Annotations.Decision)
-			log.Println(event.Annotations.Reason)
+			log.Println(fmt.Sprintf("Source IP: %s", event.GetSourceIPAddress()))
+			log.Println(fmt.Sprintf("User Groups: %s", event.User.GetUserGroups(graphAPIClient)))
+			log.Println(fmt.Sprintf("ObjectRef Name: %s", event.ObjectRef.Name))
+			log.Println(fmt.Sprintf("ObjectRef Resource: %s", event.ObjectRef.Resource))
+			log.Println(fmt.Sprintf("Authorization Decision: %s", event.Annotations.Decision))
+			log.Println(fmt.Sprintf("Authorization Reason: %s", event.Annotations.Reason))
 		}
 	}
 }
 
 func main() {
-	// load the parameters from OS environment variables and initialize our userFinder class
+	// load the parameters from OS environment variables and initialize our graphAPIClient class
 	tenantID := os.Getenv("TENANT_ID")
 	clientID := os.Getenv("CLIENT_ID")
 	clientSecret := os.Getenv("CLIENT_SECRET")
-	userFinder = graphapi.NewUserFinder(tenantID, clientID, clientSecret)
+
+	graphAPIClient = graphapi.NewGraphAPIClient(tenantID, clientID, clientSecret)
 	userTenantURLPrefix = fmt.Sprintf("https://sts.windows.net/%s/#", tenantID)
 
 	http.HandleFunc("/audits", kubernetesaudits)

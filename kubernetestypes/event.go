@@ -20,9 +20,7 @@ type Event struct {
 func (e *Event) GetSourceIPAddress() string {
 	if len(e.SourceIPs) == 0 {
 		return "UNKNOWN"
-	} else if len(e.SourceIPs) == 1 {
-		return e.SourceIPs[0]
-	} else {
-		return strings.Join(e.SourceIPs, ",")
 	}
+
+	return strings.Join(e.SourceIPs, ",")
 }
