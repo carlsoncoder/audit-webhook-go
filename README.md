@@ -25,6 +25,3 @@ However - please note that you won't actually get any Azure AD User or Group inf
 There is also a multi-stage build Dockerfile in the repo that you can use to build a Docker image with this binary.   You can create it with the following command:
 
     docker build -t audit-webhook-go .
-
-TODO ITEMS:
-* Get the docker build working!
