@@ -28,13 +28,10 @@ const (
 )
 
 func kubernetesAuditPostHandler(rw http.ResponseWriter, req *http.Request) {
-	now := time.Now().UTC()
-	formattedNow := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
-
-	log.Println(fmt.Sprintf("[%s] Processing POST request...", formattedNow))
+	now := getCurrentDateTimeString()
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		log.Println("Error reading POST!")
+		log.Println(fmt.Sprintf("[%s] ERROR: Unable to read POST body", now))
 		log.Println(fmt.Sprintf("%v", err))
 		return
 	}
@@ -43,62 +40,70 @@ func kubernetesAuditPostHandler(rw http.ResponseWriter, req *http.Request) {
 
 	err = json.Unmarshal(body, &eventList)
 	if err != nil {
-		log.Println("Unable to parse POST to JSON")
+		log.Println(fmt.Sprintf("[%s] ERROR: Unable to parse POST to JSON", now))
 		log.Println(fmt.Sprintf("%v", err))
 		log.Println("Full POST Body:")
 		log.Println(string(body[:]))
 		return
 	}
 
-	// error handling function to capture any errors that occur in the processing in the rest of this method
+	// error handling function to capture any errors that occur in the processing in the rest of this function
 	defer func() {
 		err := recover()
 		if err != nil {
-			log.Println("ERROR PROCESSING KUBERNETES AUDIT RECORDS:")
+			log.Println(fmt.Sprintf("[%s] ERROR: Unable to process kubernetes audit records", now))
 			log.Println(fmt.Sprintf("%v", err))
 			log.Println("Full POST Body:")
 			log.Println(string(body[:]))
 		}
 	}()
 
-	for i, event := range eventList.Events {
+	for _, event := range eventList.Events {
 		// We only want to log records that came from an AAD user
 		if event.User.IsUserValidAADUser(userTenantURLPrefix) {
-			log.Println(fmt.Sprintf("Event #%d", i+1))
-			log.Println(fmt.Sprintf("Timestamp: %s", event.StageTimestamp))
-			log.Println(fmt.Sprintf("Level: %s", event.Level))
-			log.Println(fmt.Sprintf("Stage: %s", event.Stage))
-			log.Println(fmt.Sprintf("Requst URI: %s", event.RequestURI))
-			log.Println(fmt.Sprintf("Verb: %s", event.Verb))
-
-			// determine and output user properties
+			// determine user and user group properties
 			userObjectID, userDisplayName, userPrincipalName := event.User.GetUserDetails(userTenantURLPrefix, graphAPIClient)
-			log.Println(fmt.Sprintf("User Object ID: %s", userObjectID))
-			log.Println(fmt.Sprintf("User Display Name: %s", userDisplayName))
-			log.Println(fmt.Sprintf("User Principal Name: %s", userPrincipalName))
+			userGroups := event.User.GetUserGroups(graphAPIClient)
 
-			log.Println(fmt.Sprintf("Source IP: %s", event.GetSourceIPAddress()))
-			log.Println(fmt.Sprintf("User Groups: %s", event.User.GetUserGroups(graphAPIClient)))
-			log.Println(fmt.Sprintf("ObjectRef Name: %s", event.ObjectRef.Name))
-			log.Println(fmt.Sprintf("ObjectRef Resource: %s", event.ObjectRef.Resource))
-			log.Println(fmt.Sprintf("Authorization Decision: %s", event.Annotations.Decision))
-			log.Println(fmt.Sprintf("Authorization Reason: %s", event.Annotations.Reason))
+			// get the source IP address(es) from the event
+			sourceIPAddress := event.GetSourceIPAddress()
+
+			// Prefix the log entry with "[AuditRecord]" so we can distinguish between real data and error messages in the logs
+			log.Println(
+				fmt.Sprintf(
+					"[AuditRecord] %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s",
+					event.StageTimestamp,
+					event.Level,
+					event.Stage,
+					event.RequestURI,
+					event.Verb,
+					userObjectID,
+					userDisplayName,
+					userPrincipalName,
+					sourceIPAddress,
+					userGroups,
+					event.ObjectRef.Name,
+					event.ObjectRef.Resource,
+					event.Annotations.Decision,
+					event.Annotations.Reason))
 		}
 	}
 }
 
 func main() {
-	loadParameters()
+	// load the necessary parameters from OS environment variables and validate they are present
+	loadAndValidateParameters()
 
+	// initialize our graphAPIClient with the parameters
 	graphAPIClient = graphapi.NewClient(tenantID, clientID, clientSecret)
 	userTenantURLPrefix = fmt.Sprintf("https://sts.windows.net/%s/#", tenantID)
 
+	// setup the handler for POSTing to the /audits endpoint
 	http.HandleFunc("/audits", kubernetesAuditPostHandler)
 	log.Fatal(http.ListenAndServe(":80", nil))
 }
 
-func loadParameters() {
-	// load the parameters from OS environment variables and initialize our graphAPIClient class
+func loadAndValidateParameters() {
 	tenantID = os.Getenv(tenantIDVariableName)
 	clientID = os.Getenv(clientIDVariableName)
 	clientSecret = os.Getenv(clientSecretVariableName)
@@ -112,4 +117,10 @@ func validateParameter(parameterValue string, parameterName string) {
 	if parameterValue == "" {
 		panic(fmt.Errorf("%s cannot be null", parameterName))
 	}
+}
+
+func getCurrentDateTimeString() string {
+	now := time.Now().UTC()
+	formattedNow := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
+	return formattedNow
 }
