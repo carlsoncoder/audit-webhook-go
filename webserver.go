@@ -11,20 +11,29 @@ import (
 
 	graphapi "github.com/carlsoncoder/audit-webhook-go/graphapi"
 	kubernetestypes "github.com/carlsoncoder/audit-webhook-go/kubernetestypes"
+	omstypes "github.com/carlsoncoder/audit-webhook-go/omstypes"
+	omsgo "github.com/dtzar/oms-go/oms_data_collector"
 )
 
 var (
 	tenantID            string
 	clientID            string
 	clientSecret        string
+	omsCustomerID       string
+	omsSharedKey        string
 	graphAPIClient      *graphapi.Client
+	omsLogClient        omsgo.OmsLogClient
 	userTenantURLPrefix string
 )
 
 const (
-	tenantIDVariableName     = "TENANT_ID"
-	clientIDVariableName     = "CLIENT_ID"
-	clientSecretVariableName = "CLIENT_SECRET"
+	tenantIDVariableName      = "TENANT_ID"
+	clientIDVariableName      = "CLIENT_ID"
+	clientSecretVariableName  = "CLIENT_SECRET"
+	omsCustomerIDVariableName = "OMS_CUSTOMER_ID"
+	omsSharedKeyVariableName  = "OMS_SHARED_KEY"
+	omsPostTimeout            = time.Second * 5
+	omsLogType                = "kubernetesaudits"
 )
 
 func kubernetesAuditPostHandler(rw http.ResponseWriter, req *http.Request) {
@@ -86,6 +95,26 @@ func kubernetesAuditPostHandler(rw http.ResponseWriter, req *http.Request) {
 					event.ObjectRef.Resource,
 					event.Annotations.Decision,
 					event.Annotations.Reason))
+
+			// build and send the message to OMS
+			omsMessage := &omstypes.LogMessage{
+				Timestamp:         event.StageTimestamp,
+				RequestURI:        event.RequestURI,
+				Verb:              event.Verb,
+				UserDisplayName:   userDisplayName,
+				UserPrincipalName: userPrincipalName,
+				ResourceType:      event.ObjectRef.Resource,
+				ResourceName:      event.ObjectRef.Name,
+			}
+
+			err := omsMessage.PostToOMS(omsLogClient, omsLogType)
+			if err != nil {
+				log.Println(fmt.Sprintf("[%s] ERROR: Unable to POST message to OMS", now))
+				log.Println(fmt.Sprintf("%v", err))
+
+				// still want to try and process the rest of the event messages!
+				continue
+			}
 		}
 	}
 }
@@ -98,6 +127,9 @@ func main() {
 	graphAPIClient = graphapi.NewClient(tenantID, clientID, clientSecret)
 	userTenantURLPrefix = fmt.Sprintf("https://sts.windows.net/%s/#", tenantID)
 
+	// initialize the OMS GO client with the parameters
+	omsLogClient = omsgo.NewOmsLogClient(omsCustomerID, omsSharedKey, omsPostTimeout)
+
 	// setup the handler for POSTing to the /audits endpoint
 	http.HandleFunc("/audits", kubernetesAuditPostHandler)
 	log.Fatal(http.ListenAndServe(":80", nil))
@@ -107,10 +139,14 @@ func loadAndValidateParameters() {
 	tenantID = os.Getenv(tenantIDVariableName)
 	clientID = os.Getenv(clientIDVariableName)
 	clientSecret = os.Getenv(clientSecretVariableName)
+	omsCustomerID = os.Getenv(omsCustomerIDVariableName)
+	omsSharedKey = os.Getenv(omsSharedKeyVariableName)
 
 	validateParameter(tenantID, tenantIDVariableName)
 	validateParameter(clientID, clientIDVariableName)
 	validateParameter(clientSecret, clientSecretVariableName)
+	validateParameter(omsCustomerID, omsCustomerIDVariableName)
+	validateParameter(omsSharedKey, omsSharedKeyVariableName)
 }
 
 func validateParameter(parameterValue string, parameterName string) {
