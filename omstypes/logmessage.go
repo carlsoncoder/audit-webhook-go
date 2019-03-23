@@ -12,10 +12,15 @@ type LogMessage struct {
 	Timestamp         time.Time `json:"timestamp"`
 	RequestURI        string    `json:"requestURI"`
 	Verb              string    `json:"verb"`
+	UserAgent         string    `json:"userAgent"`
 	UserDisplayName   string    `json:"userDisplayName"`
 	UserPrincipalName string    `json:"userPrincipalName"`
 	ResourceType      string    `json:"resourceType"`
 	ResourceName      string    `json:"resourceName"`
+	ResourceNamespace string    `json:"resourceNamespace"`
+	ResponseStatus    string    `json:"responseStatus"`
+	ResponseReason    string    `json:"responseReason"`
+	ResponseCode      int       `json:"responseCode"`
 }
 
 // PostToOMS attempts to actually post the message to OMS for the given log type

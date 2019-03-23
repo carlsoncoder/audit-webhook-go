@@ -80,19 +80,24 @@ func kubernetesAuditPostHandler(rw http.ResponseWriter, req *http.Request) {
 			// Prefix the log entry with "[AuditRecord]" so we can distinguish between real data and error messages in the logs
 			log.Println(
 				fmt.Sprintf(
-					"[AuditRecord] %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s",
+					"[AuditRecord] %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%d,%s,%s",
 					event.StageTimestamp,
 					event.Level,
 					event.Stage,
 					event.RequestURI,
 					event.Verb,
+					event.UserAgent,
 					userObjectID,
 					userDisplayName,
 					userPrincipalName,
 					sourceIPAddress,
 					userGroups,
 					event.ObjectRef.Name,
+					event.ObjectRef.Namespace,
 					event.ObjectRef.Resource,
+					event.ResponseStatus.Status,
+					event.ResponseStatus.Reason,
+					event.ResponseStatus.Code,
 					event.Annotations.Decision,
 					event.Annotations.Reason))
 
@@ -101,11 +106,15 @@ func kubernetesAuditPostHandler(rw http.ResponseWriter, req *http.Request) {
 				Timestamp:         event.StageTimestamp,
 				RequestURI:        event.RequestURI,
 				Verb:              event.Verb,
+				UserAgent:         event.UserAgent,
 				UserDisplayName:   userDisplayName,
 				UserPrincipalName: userPrincipalName,
 				ResourceType:      event.ObjectRef.Resource,
 				ResourceName:      event.ObjectRef.Name,
-			}
+				ResourceNamespace: event.ObjectRef.Namespace,
+				ResponseStatus:    event.ResponseStatus.Status,
+				ResponseReason:    event.ResponseStatus.Reason,
+				ResponseCode:      event.ResponseStatus.Code}
 
 			err := omsMessage.PostToOMS(omsLogClient, omsLogType)
 			if err != nil {
