@@ -5,7 +5,7 @@ An implementation of an audit webhook to be used by the kubernetes api-server, w
 In order to run this, you need an Azure AD application registration setup with the appropriate Graph API permissions. Instructions on how to configure this can be found 
 [here](https://docs.microsoft.com/en-us/graph/auth-v2-service?toc=./ref/toc.json&view=graph-rest-1.0).
 
-Additionally, you need to export/define several environment variables:
+Additionally, you need to export/define several environment variables (note that examples can be found in the kubernetes-deployment.yaml file if deploying this solution in Kubernetes):
 
 * TENANT_ID
   * Your Azure AD tenant ID
@@ -13,6 +13,10 @@ Additionally, you need to export/define several environment variables:
   * The client_id of your Azure application registration
 * CLIENT_SECRET
   * The client_secret to be able to access on behalf of your Azure application registration
+* OMS_CUSTOMER_ID
+  * Your primary key for your OMS instance
+* OMS_SHARED_KEY
+  * Your shared key for your OMS instance
 
 If you don't want to set these up as environment variables, you can optionally just hard-code them in loadParameters function in webserver.go
 

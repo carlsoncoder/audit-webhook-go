@@ -36,6 +36,10 @@ spec:
           value: "YOUR_CLIENT_ID_HERE"
         - name: CLIENT_SECRET
           value: "YOUR_CLIENT_SECRET_HERE"
+        - name: OMS_CUSTOMER_ID
+          value: "YOUR_OMS_CUSTOMER_ID_HERE"
+        - name: OMS_SHARED_KEY
+          value: "YOUR_OMS_SHARED_KEY_HERE"
         ports:
         - containerPort: 80
       nodeSelector:
