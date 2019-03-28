@@ -20,8 +20,13 @@ const (
 	userPrincipalNameFieldName    = "userPrincipalName"
 )
 
-// Client struct is used to make calls to the Microsoft Graph API to load user and group details out of Azure AD
-type Client struct {
+// Client interface is used to make calls to the Microsoft Graph API to load user and group details out of Azure AD
+type Client interface {
+	LoadUserValues(string) (string, string)
+	LoadGroupValues(string) string
+}
+
+type client struct {
 	tenantID         string
 	clientID         string
 	clientSecret     string
@@ -30,12 +35,12 @@ type Client struct {
 }
 
 // NewClient instantiates a new instance of the Client struct
-func NewClient(tenantID string, clientID string, clientSecret string) *Client {
-	return &Client{tenantID, clientID, clientSecret, make(map[string]string), make(map[string]string)}
+func NewClient(tenantID string, clientID string, clientSecret string) Client {
+	return &client{tenantID, clientID, clientSecret, make(map[string]string), make(map[string]string)}
 }
 
 // LoadUserValues loads the user displayName and user userPrincipalName out of Azure AD via the Graph API
-func (client *Client) LoadUserValues(userObjectID string) (string, string) {
+func (client *client) LoadUserValues(userObjectID string) (string, string) {
 	// check the cache first - we don't bother invalidating cache ever since Azure User ID's aren't going to change
 	user, ok := client.userLookupTable[userObjectID]
 	if ok {
@@ -53,7 +58,7 @@ func (client *Client) LoadUserValues(userObjectID string) (string, string) {
 }
 
 // LoadGroupValues loads the group displayName out of Azure AD via the Graph API
-func (client *Client) LoadGroupValues(groupObjectID string) string {
+func (client *client) LoadGroupValues(groupObjectID string) string {
 	// check the cache first - we don't bother invalidating cache ever since Azure Group ID's aren't going to change
 	group, ok := client.groupLookupTable[groupObjectID]
 	if ok {
@@ -68,7 +73,7 @@ func (client *Client) LoadGroupValues(groupObjectID string) string {
 	return displayName
 }
 
-func obtainAccessToken(client *Client) string {
+func obtainAccessToken(client *client) string {
 	graphURL := fmt.Sprintf(graphAPILoginURLFormat, client.tenantID)
 
 	requestBody := url.Values{

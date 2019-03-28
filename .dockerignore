@@ -2,3 +2,5 @@
 README.md
 sampleKubernetesAuditPostData.json
 kubernetes-deployment.yaml
+debug
+audit-webhook-go

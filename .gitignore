@@ -21,3 +21,6 @@ audit-webhook-go.exe
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Ignore debug assemblies
+debug

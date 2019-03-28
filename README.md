@@ -3,7 +3,7 @@
 An implementation of an audit webhook to be used by the kubernetes api-server, written in Go
 
 In order to run this, you need an Azure AD application registration setup with the appropriate Graph API permissions. Instructions on how to configure this can be found 
-[here](https://docs.microsoft.com/en-us/graph/auth-v2-service?toc=./ref/toc.json&view=graph-rest-1.0).
+[here](https://docs.microsoft.com/en-us/graph/auth-v2-service?toc=./ref/toc.json&view=graph-rest-1.0).  You will also need an OMS instance setup in Azure as well.
 
 Additionally, you need to export/define several environment variables (note that examples can be found in the kubernetes-deployment.yaml file if deploying this solution in Kubernetes):
 
@@ -29,3 +29,5 @@ However - please note that you won't actually get any Azure AD User or Group inf
 There is also a multi-stage build Dockerfile in the repo that you can use to build a Docker image with this binary.   You can create it with the following command:
 
     docker build -t audit-webhook-go .
+
+If you just want to use deploy it to a running Kubernetes instance, you can just deploy the YAML file (set your own environment variables first).
